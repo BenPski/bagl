@@ -1,4 +1,5 @@
 from abc import ABCMeta, abstractmethod
+import copy
 
 
 class ExprDB():
@@ -123,28 +124,70 @@ class ExprDBPrint(ExprDBVisitor):
         return "[ " + self(elem.expr) + " | " + self(elem.index) + " -> " + self(elem.val) + " ]"
 
 
-class ExprDBWHNF(ExprDBVisitor):
+class OutermostRedex(ExprDBVisitor):
     """
-    Evaluate to weak head normal form
-
-    essentially if an apply can be done it should be done
-    Apply(Lambda(blah), value) -> substitute(blah.body, blah.head, value)
+    Find the expression that constitutes the outermost redex
+    essentially traverse all left sides of applies
     """
 
-    def visitVariable(self, elem):
-        return elem
+    def visitApply(self, elem):
+        return self(elem.left)
 
     def visitIndex(self, elem):
-        return elem
+        return elem  # really shouldn't be happening
 
     def visitLambda(self, elem):
         return elem
 
+    def visitSubs(self, elem):
+        return elem  # shouldn't ever encounter
+
+    def visitVariable(self, elem):
+        return elem
+
+
+class AccumArguments(ExprDBVisitor):
+    """
+    Accumulates the arguments that are applied to the outermost redex
+    """
+
+    def __init__(self):
+        self.args = []
+
+    def visitVariable(self, elem):
+        return self.args
+
+    def visitSubs(self, elem):
+        return self.args
+
+    def visitLambda(self, elem):
+        return self.args
+
+    def visitIndex(self, elem):
+        return self.args
+
     def visitApply(self, elem):
-        if isinstance(elem.left, LambdaDB):
-            return self(SubsDB(elem.left.body, IndexDB(1), elem.right))
-        else:
-            return self(ApplyDB(self(elem.left), elem.right))
+        self.args.append(elem.right)
+        return self(elem.left)
+
+
+class Eval(ExprDBVisitor):
+    """
+    Track to outer redex, maintain stack of arguments, evaluate
+
+    If arriving at something that cannot be evaluated unwind the applies
+    """
+
+    def __init__(self):
+        self.args = []
+
+    def unwrap(self, elem):
+        while len(self.args) > 0:
+            elem = ApplyDB(elem, self.args.pop())
+        return elem
+
+    def visitVariable(self, elem):
+        return self.unwrap(elem)
 
     def visitSubs(self, elem):
         if isinstance(elem.expr, IndexDB):
@@ -155,6 +198,27 @@ class ExprDBWHNF(ExprDBVisitor):
         elif isinstance(elem.expr, LambdaDB):
             return self(LambdaDB(self(SubsDB(elem.expr.body, IndexDB(elem.index.n + 1), elem.val))))
         elif isinstance(elem.expr, ApplyDB):
-            return self(ApplyDB(self(SubsDB(elem.expr.left, elem.index, elem.val)),
-                                self(SubsDB(elem.expr.right, elem.index, elem.val))))
-        return elem.expr
+            return ApplyDB(self(SubsDB(elem.expr.left, elem.index, elem.val)),
+                           self(SubsDB(elem.expr.right, elem.index, elem.val)))
+        elif isinstance(elem.expr, SubsDB):
+            return SubsDB(self(elem.expr), elem.index, elem.val)
+        else:
+            return self(elem.expr)
+
+    def visitLambda(self, elem):
+        if len(self.args) >= 1:
+            arg = self.args.pop()
+            return self(SubsDB(elem.body, IndexDB(1), arg))
+        else:
+            return elem
+
+    def visitIndex(self, elem):
+        return elem
+
+    def visitApply(self, elem):
+        if isinstance(elem.left, VariableDB):
+            return self.unwrap(elem)
+        else:
+            next = Eval()
+            next.args.append(elem.right)
+            return self(next(elem.left))

@@ -107,40 +107,6 @@ class ExprPrint(ExprVisitor):
         return "[ " + self(elem.expr) + " | " + self(elem.var) + " -> " + self(elem.val) + " ]"
 
 
-class ExprWHNF(ExprVisitor):
-    """
-    Evaluate to weak head normal form
-
-    essentially if an apply can be done it should be done
-    Apply(Lambda(blah), value) -> substitute(blah.body, blah.head, value)
-    """
-
-    def visitVariable(self, elem):
-        return elem
-
-    def visitLambda(self, elem):
-        return elem
-
-    def visitApply(self, elem):
-        if isinstance(elem.left, Lambda):
-            return self(Subs(elem.left.body, elem.left.head, elem.right))
-        else:
-            return self(Apply(self(elem.left), elem.right))
-
-    def visitSubs(self, elem):
-        if isinstance(elem.expr, Variable):
-            if elem.expr.s == elem.var.s:
-                return elem.val
-            else:
-                return elem.expr
-        elif isinstance(elem.expr, Lambda):
-            return self(Lambda(elem.expr.head, self(Subs(elem.expr.body, elem.var, elem.val))))
-        elif isinstance(elem.expr, Apply):
-            return self(Apply(self(Subs(elem.expr.left, elem.var, elem.val)),
-                              self(Subs(elem.expr.right, elem.var, elem.val))))
-        return elem.expr
-
-
 class ExprToExprDB(ExprVisitor):
     """
     Convert regular lambda calculus expressions to de bruijn notation
