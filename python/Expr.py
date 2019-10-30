@@ -1,5 +1,9 @@
+"""
+Lambda calculus representation for easier expression writing and then conversion to core
+"""
+
 from abc import ABCMeta, abstractmethod
-from ExprDB import *
+import Core as C
 import copy
 
 
@@ -52,19 +56,52 @@ class Apply(Expr):
         return visitor.visitApply(self)
 
 
-class Subs(Expr):
+class Bottom(Expr):
     """
-    A substitution node
-    [E:x\y]
+    Non-terminating node
     """
 
-    def __init__(self, expr, var, val):
-        self.expr = expr
-        self.var = var
-        self.val = val
+    def __init__(self):
+        pass
 
     def accept(self, visitor):
-        return visitor.visitSubs(self)
+        return visitor.visitBottom(self)
+
+
+class TRUE(Expr):
+    """
+    truthy value
+    """
+
+    def __init__(self):
+        pass
+
+    def accept(self, visitor):
+        return visitor.visitTrue(self)
+
+
+class FALSE(Expr):
+    """
+    falsy value
+    """
+
+    def __init__(self):
+        pass
+
+    def accept(self, visitor):
+        return visitor.visitFalse(self)
+
+
+class If(Expr):
+    """
+    If condition
+    """
+
+    def __init__(self):
+        pass
+
+    def accept(self, visitor):
+        return visitor.visitIf(self)
 
 
 class ExprVisitor():
@@ -89,7 +126,19 @@ class ExprVisitor():
         pass
 
     @abstractmethod
-    def visitSubs(self, elem):
+    def visitBottom(self, elem):
+        pass
+
+    @abstractmethod
+    def visitTrue(self, elem):
+        pass
+
+    @abstractmethod
+    def visitFalse(self, elem):
+        pass
+
+    @abstractmethod
+    def visitIf(self, elem):
         pass
 
 
@@ -103,11 +152,20 @@ class ExprPrint(ExprVisitor):
     def visitApply(self, elem):
         return self(elem.left) + " " + self(elem.right)
 
-    def visitSubs(self, elem):
-        return "[ " + self(elem.expr) + " | " + self(elem.var) + " -> " + self(elem.val) + " ]"
+    def visitBottom(self, elem):
+        return "_|_"
+
+    def visitFalse(self, elem):
+        return "False"
+
+    def visitTrue(self, elem):
+        return "True"
+
+    def visitIf(self, elem):
+        return "if "
 
 
-class ExprToExprDB(ExprVisitor):
+class ExprToCore(ExprVisitor):
     """
     Convert regular lambda calculus expressions to de bruijn notation
 
@@ -116,7 +174,7 @@ class ExprToExprDB(ExprVisitor):
     just using a dictionary :: variable -> index
     update indices when going down one level in a lambda
     assume no shadowing of names
-    if variable not found just leave it as an atom
+    if variable not found just leave it as an atom (means it is a free variable)
 
     when encountering a lambda have to initialize a new index in the environment
     """
@@ -126,21 +184,29 @@ class ExprToExprDB(ExprVisitor):
 
     def visitVariable(self, elem):
         if elem.s in self.env:
-            return IndexDB(self.env[elem.s])
+            return C.Index(self.env[elem.s])
         else:
-            return VariableDB(elem.s)
+            return C.Symbol(elem.s)
 
     def visitLambda(self, elem):
         s = elem.head.s
         self.env[s] = 0
         for key in self.env.keys():
             self.env[key] += 1
-        return LambdaDB(self(elem.body))
+        return C.Lambda(self(elem.body))
 
     def visitApply(self, elem):
         self_copy = copy.deepcopy(self)
-        return ApplyDB(self_copy(elem.left), self_copy(elem.right))
+        return C.Apply(self_copy(elem.left), self_copy(elem.right))
 
-    def visitSubs(self, elem):
-        self_copy = copy.deepcopy(self)
-        return SubsDB(self_copy(elem.expr), self_copy(elem.var), self_copy(elem.val))
+    def visitBottom(self, elem):
+        return C.Bottom()
+
+    def visitFalse(self, elem):
+        return C.FALSE()
+
+    def visitTrue(self, elem):
+        return C.TRUE()
+
+    def visitIf(self, elem):
+        return C.If()

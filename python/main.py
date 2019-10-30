@@ -1,26 +1,19 @@
 from Expr import *
-from ExprDB import *
+from Core import CorePrint, whnf
 
 if __name__ == "__main__":
-    convert = ExprToExprDB()
-    printer = ExprDBPrint()
-    interp = Eval()
+    convert = ExprToCore()
+    printer = CorePrint()
 
     x = Variable("x")
     y = Variable("y")
     z = Variable("z")
 
-    t = Lambda(x, Lambda(y, x))
-    f = Lambda(x, Lambda(y, y))
     id = Lambda(x, x)
-    NOT = Lambda(x, Apply(Apply(x, f), t))
-    AND = Lambda(x, Lambda(y, Apply(Apply(x,y), x)))
-    OR = Lambda(x, Lambda(y, Apply(Apply(x, x), y)))
+    NOT = Lambda(x, Apply(Apply(Apply(If(), x), FALSE()), TRUE()))
 
-    expr1 = convert(Apply(Apply(AND, Apply(NOT, f)), Apply(NOT,t)))
-    expr2 = convert(Apply(Apply(OR, t), t))
+    expr = convert(Apply(Lambda(x, Apply(If(), Apply(NOT, x))), TRUE()))
+    # expr = convert(Apply(x,z))
 
-    # expr1 = convert(Apply(x,z))
-
-    print(printer(expr1))
-    print(printer(interp(expr1)))
+    print(printer(expr))
+    print(printer(whnf(expr)))
