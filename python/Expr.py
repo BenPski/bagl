@@ -104,6 +104,33 @@ class If(Expr):
         return visitor.visitIf(self)
 
 
+class Number(Expr):
+    def __init__(self, n):
+        self.n = n
+
+    def accept(self, visitor):
+        return visitor.visitNumber(self)
+
+class Add(Expr):
+    def __init__(self):
+        pass
+
+    def accept(self, visitor):
+        return visitor.visitAdd(self)
+
+class Mult(Expr):
+    def __init__(self):
+        pass
+
+    def accept(self, visitor):
+        return visitor.visitMult(self)
+
+
+"""
+Visitor Pattern
+"""
+
+
 class ExprVisitor():
     """
     Visitor definition for the expression tree
@@ -139,6 +166,18 @@ class ExprVisitor():
 
     @abstractmethod
     def visitIf(self, elem):
+        pass
+
+    @abstractmethod
+    def visitNumber(self, elem):
+        pass
+
+    @abstractmethod
+    def visitAdd(self, elem):
+        pass
+
+    @abstractmethod
+    def visitMult(self, elem):
         pass
 
 
@@ -210,3 +249,12 @@ class ExprToCore(ExprVisitor):
 
     def visitIf(self, elem):
         return C.If()
+
+    def visitNumber(self, elem):
+        return C.Number(elem.n)
+
+    def visitAdd(self, elem):
+        return C.Add()
+
+    def visitMult(self, elem):
+        return C.Mult()

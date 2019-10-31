@@ -132,6 +132,76 @@ class If(Core):
         return visitor.visitIf(self)
 
 
+class Number(Core):
+    """
+    number: double for now
+    """
+
+    def __init__(self, n):
+        self.n = n
+
+    def accept(self, visitor):
+        return visitor.visitNumber(self)
+
+
+class Builtin(Core):
+    """
+    Definitions for builtin functions
+
+    Assumed strict in every argument
+    """
+    __metaclass__ = ABCMeta
+
+    def __init__(self):
+        pass
+
+    def accept(self, visitor):
+        return visitor.visitBuiltin(self)
+
+    @abstractmethod
+    def func(self, args, spine):
+        pass
+
+    @abstractmethod
+    def show(self):
+        pass
+
+    @property
+    @abstractmethod
+    def args(self):
+        pass
+
+
+class Add(Builtin):
+    @property
+    def args(self):
+        return 2
+
+    def func(self, args, spine):
+        if isinstance(args[0], Number) and isinstance(args[1], Number):
+            return Number(args[0].n + args[1].n)
+        else:
+            raise RuntimeError("Can only multiply numbers")
+
+    def show(self):
+        return "+"
+
+
+class Mult(Builtin):
+    @property
+    def args(self):
+        return 2
+
+    def func(self, args, spine):
+        if isinstance(args[0], Number) and isinstance(args[1], Number):
+            return Number(args[0].n * args[1].n)
+        else:
+            raise RuntimeError("Can only multiply numbers")
+
+    def show(self):
+        return "*"
+
+
 """
 Visitor pattern
 """
@@ -178,6 +248,14 @@ class CoreVisitor():
     def visitIf(self, elem):
         pass
 
+    @abstractmethod
+    def visitNumber(self, elem):
+        pass
+
+    @abstractmethod
+    def visitBuiltin(self, elem):
+        pass
+
 
 class CorePrint(CoreVisitor):
     def visitSymbol(self, elem):
@@ -190,7 +268,7 @@ class CorePrint(CoreVisitor):
         return "(\\ " + self(elem.body) + ")"
 
     def visitApply(self, elem):
-        return self(elem.left) + " " + self(elem.right)
+        return "(" + self(elem.left) + " " + self(elem.right) + ")"
 
     def visitBottom(self, elem):
         return "_|_"
@@ -204,6 +282,12 @@ class CorePrint(CoreVisitor):
     def visitIf(self, elem):
         # return "if " + self(elem.condition) + " then " + self(elem.branch1) + " else " + self(elem.branch2)
         return "if"
+
+    def visitNumber(self, elem):
+        return str(elem.n)
+
+    def visitBuiltin(self, elem):
+        return elem.show()
 
 
 """
@@ -270,8 +354,15 @@ def whnf_step(expr, spine):
                 return whnf_step(b2, spine)
             else:
                 raise RuntimeError("Condition in if statement is not a boolean")
+    if isinstance(expr, Builtin):
+        if len(spine) >= expr.args:
+            args = [spine.pop() for i in range(expr.args)]
+            spine_copy = copy.deepcopy(spine)
+            args = [whnf_step(arg, spine_copy)[0] for arg in args]
+            expr = expr.func(args, spine_copy)
+            return whnf_step(expr, spine)
     if isinstance(expr, Apply):  # a little weird to have it here
         expr, spine = redex(expr, spine)
         return whnf_step(expr, spine)
 
-    return (expr, spine)
+    return expr, spine
