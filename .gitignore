@@ -1,4 +1,5 @@
 .idea/
 python/.idea
 python/__pycache__
+**/__pycache__
 stale_outputs_checked

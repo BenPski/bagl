@@ -1,9 +1,11 @@
-from Expr import *
-from Core import CorePrint, whnf
+from Representation.Expr import *
+from Representation.Convert import ExprToCore
+from Core.Eval import whnf
+from Core.Print import Print
 
 if __name__ == "__main__":
     convert = ExprToCore()
-    printer = CorePrint()
+    printer = Print()
 
     x = Variable("x")
     y = Variable("y")
