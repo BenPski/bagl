@@ -66,14 +66,25 @@ def visitor(nodes):
 if __name__ == "__main__":
     nodes = [Node("Variable", ["s"]),
              Node("Lambda", ["head", "body"]),
+             Node("LambdaM", ["args", "body"]),
              Node("Apply", ["left", "right"]),
+             Node("ApplyM", ["func", "values"]),
              Node("Bottom"),
              Node("TRUE"),
              Node("FALSE"),
              Node("If"),
+             Node("Seq"),
              Node("Number", ["n"]),
              Node("Add"),
-             Node("Mult")]
+             Node("Sub"),
+             Node("Mult"),
+             Node("Equal"),
+             Node("Let", ["var", "val", "expr"]),
+             Node("LetRec", ["var", "val", "expr"]),
+             Node("Nil"),
+             Node("Cons"),
+             Node("Head"),
+             Node("Tail")]
     with open("Representation/Expr.py", 'w') as f:
         f.write(expr(nodes))
     with open("Representation/Visitor.py", 'w') as f:

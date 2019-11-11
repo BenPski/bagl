@@ -2,14 +2,11 @@ from Core.Visitor import Visitor
 
 
 class Print(Visitor):
-    def visitSymbol(self, elem):
+    def visitVariable(self, elem):
         return elem.s
 
-    def visitIndex(self, elem):
-        return "#" + str(elem.n)
-
     def visitLambda(self, elem):
-        return "(\\ " + self(elem.body) + ")"
+        return "(\\" + self(elem.head) + " . " + self(elem.body) + ")"
 
     def visitApply(self, elem):
         return "(" + self(elem.left) + " " + self(elem.right) + ")"
@@ -26,8 +23,14 @@ class Print(Visitor):
     def visitIf(self, elem):
         return "if"
 
+    def visitSeq(self, elem):
+        return "seq"
+
     def visitNumber(self, elem):
         return str(elem.n)
 
     def visitBuiltin(self, elem):
+        return elem.show()
+
+    def visitData(self, elem):
         return elem.show()

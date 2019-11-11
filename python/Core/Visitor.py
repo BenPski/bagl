@@ -11,11 +11,7 @@ class Visitor():
         return expr.accept(self)
 
     @abstractmethod
-    def visitSymbol(self, elem):
-        pass
-
-    @abstractmethod
-    def visitIndex(self, elem):
+    def visitVariable(self, elem):
         pass
 
     @abstractmethod
@@ -48,4 +44,12 @@ class Visitor():
 
     @abstractmethod
     def visitBuiltin(self, elem):
+        pass
+
+    @abstractmethod
+    def visitSeq(self, elem):
+        pass
+
+    @abstractmethod
+    def visitData(self, elem):
         pass

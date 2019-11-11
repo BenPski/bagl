@@ -1,12 +1,16 @@
 """
 The core language that gets evaluated
 
-Comprised of lambda calculus in de bruijn notation
-everything else is just convenience
+Comprised of the lambda calculus
+
+removing de bruijn notation stuff
+For some reason there is an issue with recursion that I'm not aware of
+also in a program with no free variables de bruijn notation is not important
 """
 
 from abc import ABCMeta, abstractmethod
 import copy
+from Core.Print import Print
 
 """
 Representation
@@ -29,8 +33,12 @@ class Expr():
     def accept(self, visitor):
         pass
 
+    def __str__(self):
+        printer = Print()
+        return printer(self)
 
-class Symbol(Expr):
+
+class Variable(Expr):
     """
     An abstract named symbol
     It is just an atom with a name
@@ -40,19 +48,7 @@ class Symbol(Expr):
         self.s = s
 
     def accept(self, visitor):
-        return visitor.visitSymbol(self)
-
-
-class Index(Expr):
-    """
-    Index in de bruijn notation
-    """
-
-    def __init__(self, n):
-        self.n = n
-
-    def accept(self, visitor):
-        return visitor.visitIndex(self)
+        return visitor.visitVariable(self)
 
 
 class Lambda(Expr):
@@ -60,7 +56,8 @@ class Lambda(Expr):
     Lambda abstraction
     """
 
-    def __init__(self, body):
+    def __init__(self, head, body):
+        self.head = head
         self.body = body
 
     def accept(self, visitor):
@@ -116,6 +113,15 @@ class If(Expr):
         return visitor.visitIf(self)
 
 
+class Seq(Expr):
+    """
+    Force first argument to whnf then return second argument
+    """
+
+    def accept(self, visitor):
+        return visitor.visitSeq(self)
+
+
 class Number(Expr):
     """
     number: double for now
@@ -126,6 +132,70 @@ class Number(Expr):
 
     def accept(self, visitor):
         return visitor.visitNumber(self)
+
+
+class Data(Expr):
+    """
+    Generalized data constructor
+
+    Very similar to builtins except it stores information and has an associated type
+    """
+
+    __metaclass__ = ABCMeta
+
+    def __init__(self):
+        self.initialized = False
+        self.values = None
+
+    def accept(self, visitor):
+        return visitor.visitData(self)
+
+    @abstractmethod
+    def show(self):
+        pass
+
+    @property
+    @abstractmethod
+    def fields(self):
+        pass
+
+    @property
+    @abstractmethod
+    def type(self):
+        pass
+
+    def construct(self, fields, spine):
+        self.values = fields
+        self.initialized = True
+
+
+class Nil(Data):
+    def show(self):
+        return "Nil"
+
+    @property
+    def fields(self):
+        return 0
+
+    @property
+    def type(self):
+        return "List"
+
+
+class Cons(Data):
+    def show(self):
+        if self.initialized:
+            return "(Cons " + str(self.values[0]) + " " + str(self.values[1]) + ")"
+        else:
+            return "Cons"
+
+    @property
+    def fields(self):
+        return 2
+
+    @property
+    def type(self):
+        return "List"
 
 
 class Builtin(Expr):
@@ -162,10 +232,25 @@ class Add(Builtin):
         if isinstance(args[0], Number) and isinstance(args[1], Number):
             return Number(args[0].n + args[1].n)
         else:
-            raise RuntimeError("Can only multiply numbers")
+            raise RuntimeError("Can only add numbers")
 
     def show(self):
         return "+"
+
+
+class Sub(Builtin):
+    @property
+    def args(self):
+        return 2
+
+    def func(self, args, spine):
+        if isinstance(args[0], Number) and isinstance(args[1], Number):
+            return Number(args[0].n - args[1].n)
+        else:
+            raise RuntimeError("Can only subtract numbers")
+
+    def show(self):
+        return "-"
 
 
 class Mult(Builtin):
@@ -183,6 +268,60 @@ class Mult(Builtin):
         return "*"
 
 
+class Equal(Builtin):
+    @property
+    def args(self):
+        return 2
+
+    def func(self, args, spine):
+        if isinstance(args[0], Number) and isinstance(args[1], Number):
+            if args[0].n == args[1].n:
+                return TRUE()
+            else:
+                return FALSE()
+        else:
+            raise RuntimeError("Equality between numbers only.")
+
+    def show(self):
+        return "=="
+
+
+class Head(Builtin):
+    @property
+    def args(self):
+        return 1
+
+    def show(self):
+        return "head"
+
+    def func(self, args, spine):
+        if isinstance(args[0], Data) and args[0].type == "List":
+            if isinstance(args[0], Cons):
+                return args[0].values[0]
+            else:
+                raise RuntimeError("Empty list has no head")
+        else:
+            raise RuntimeError("Head only works on lists")
+
+
+class Tail(Builtin):
+    @property
+    def args(self):
+        return 1
+
+    def show(self):
+        return "tail"
+
+    def func(self, args, spine):
+        if isinstance(args[0], Data) and args[0].type == "List":
+            if isinstance(args[0], Cons):
+                return args[0].values[1]
+            else:
+                raise RuntimeError("Empty list has no tail")
+        else:
+            raise RuntimeError("Tail only works on lists")
+
+
 class Value(Expr):
     """
     Interface for builtin values
@@ -193,43 +332,3 @@ class Value(Expr):
     @abstractmethod
     def value(self):
         pass
-
-
-# class String(Value):
-#     def __init__(self, str):
-#         self.value_internal = str
-#
-#     @property
-#     def value(self):
-#         return self.value_internal
-#
-# class Number(Value):
-#     def __init__(self, n):
-#         self.value_internal = n
-#
-#     def value(self):
-#         return self.value_internal
-#
-# class Boolean(Value):
-#     def __init__(self, val):
-#         self.value_internal = val
-#
-#     def value(self):
-#         return self.value_internal
-#
-# FALSE = Boolean("false")
-# TRUE = Boolean("true")
-
-
-"""
-Visitor pattern
-"""
-
-
-
-
-
-"""
-Functions for evaluating the expressions
-"""
-
