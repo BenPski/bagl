@@ -26,6 +26,10 @@ class Visitor(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    def visitGrouping(self, elem):
+        pass
+
+    @abstractmethod
     def visitBottom(self, elem):
         pass
 

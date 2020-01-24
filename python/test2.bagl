@@ -1,0 +1,5 @@
+let
+    id = \ x . x;
+    id2 = \ x . (id x);
+    f = \ x . (let y = x in x);
+in (f f 1)

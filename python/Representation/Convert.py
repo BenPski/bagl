@@ -8,6 +8,62 @@ f = Variable("f")
 x = Variable("x")
 Y = Lambda(f, Apply(Lambda(x, Apply(x, x)), Lambda(x, Apply(f, Apply(x, x)))))
 
+class RightToLeftApply(Visitor):
+    """
+    The parser switches the order of application to be right to left when it should be left to right
+    Here is an attempt to fix it
+
+    only works on applies (not mutli-applies)
+    """
+    def visitGrouping(self, elem):
+        return Grouping(self(elem.expr))
+    def visitApplyM(self, elem):
+        return elem
+    def visitHead(self, elem):
+        return elem
+    def visitTail(self, elem):
+        return elem
+    def visitNil(self, elem):
+        return elem
+    def visitCons(self, elem):
+        return elem
+    def visitSub(self, elem):
+        return elem
+    def visitEqual(self, elem):
+        return elem
+    def visitMult(self, elem):
+        return elem
+    def visitAdd(self, elem):
+        return elem
+    def visitLambdaM(self, elem):
+        return elem
+    def visitNumber(self, elem):
+        return elem
+    def visitIf(self, elem):
+        return elem
+    def visitVariable(self, elem):
+        return elem
+    def visitBottom(self, elem):
+        return elem
+    def visitFALSE(self, elem):
+        return elem
+    def visitTRUE(self, elem):
+        return elem
+    def visitSeq(self, elem):
+        return elem
+    def visitLetRec(self, elem):
+        return LetRec(elem.var, self(elem.val), self(elem.expr))
+    def visitApply(self, elem):
+        if isinstance(elem.right, Apply):
+            return self(Apply(self(Apply(self(elem.left), self(elem.right.left))), self(elem.right.right)))
+        else:
+            return Apply(self(elem.left), self(elem.right))
+    def visitLambda(self, elem):
+        return Lambda(elem.head, self(self.body))
+    def visitLet(self, elem):
+        return Let(elem.var, self(elem.val), self(elem.expr))
+
+
 class SingleApply(Visitor):
     """
     Convert all multi-value applies to single value applies
@@ -77,6 +133,9 @@ class SingleApply(Visitor):
         return elem
 
     def visitHead(self, elem):
+        return elem
+
+    def visitGrouping(self, elem):
         return elem
 
 
@@ -151,6 +210,9 @@ class SingleArgument(Visitor):
     def visitHead(self, elem):
         return elem
 
+    def visitGrouping(self, elem):
+        return elem
+
 
 class RewriteLet(Visitor):
     """
@@ -223,6 +285,8 @@ class RewriteLet(Visitor):
     def visitNil(self, elem):
         return elem
 
+    def visitGrouping(self, elem):
+        return elem
 
 
 class ExprToCore(Visitor):
@@ -306,3 +370,15 @@ class ExprToCore(Visitor):
 
     def visitTail(self, elem):
         return C.Tail()
+
+    def visitGrouping(self, elem):
+        return self(elem.expr)
+
+
+# convenience compoisition
+singApp = SingleApply()
+singArg = SingleArgument()
+let = RewriteLet()
+core = ExprToCore()
+
+convert = lambda x: core(let(singArg(singApp(x))))

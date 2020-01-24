@@ -51,6 +51,14 @@ class ApplyM(Expr):
         return visitor.visitApplyM(self)
 
 
+class Grouping(Expr):
+    def __init__(self, expr):
+        self.expr = expr
+
+    def accept(self, visitor):
+        return visitor.visitGrouping(self)
+
+
 class Bottom(Expr):
     def accept(self, visitor):
         return visitor.visitBottom(self)

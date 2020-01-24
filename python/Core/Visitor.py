@@ -53,3 +53,7 @@ class Visitor():
     @abstractmethod
     def visitData(self, elem):
         pass
+
+    @abstractmethod
+    def visitLetrec(self, elem):
+        pass

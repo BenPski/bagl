@@ -29,6 +29,7 @@ class TokenType(Enum):
     TRUE = auto()
     FALSE = auto()
     LET = auto()
+    LETREC = auto()
     IN = auto()
 
     EOF = auto()

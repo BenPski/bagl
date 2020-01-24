@@ -1,0 +1,6 @@
+let
+    id = \ x . x
+    indirect = \x . (id x)
+    f = \ x . (let y = x in y)
+    t = \x.\y.x
+in (f f indirect indirect id id id t)

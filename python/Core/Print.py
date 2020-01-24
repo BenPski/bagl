@@ -29,8 +29,21 @@ class Print(Visitor):
     def visitNumber(self, elem):
         return str(elem.n)
 
+    def visitString(self, elem):
+        return repr(elem.s)
+
     def visitBuiltin(self, elem):
         return elem.show()
 
     def visitData(self, elem):
         return elem.show()
+
+    def visitLetrec(self, elem):
+        s = "let\n"
+        for i in range(len(elem.vars)):
+            s += "  " + self(elem.vars[i]) + " = " + self(elem.vals[i])
+            s += "\n"
+        s += "in " + self(elem.expr)
+        return s
+
+    

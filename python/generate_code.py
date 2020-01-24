@@ -69,6 +69,7 @@ if __name__ == "__main__":
              Node("LambdaM", ["args", "body"]),
              Node("Apply", ["left", "right"]),
              Node("ApplyM", ["func", "values"]),
+             Node("Grouping", ["expr"]),
              Node("Bottom"),
              Node("TRUE"),
              Node("FALSE"),

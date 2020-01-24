@@ -1,0 +1,1 @@
+/home/ben/stuff/bagl/rust/target/debug/bagl: /home/ben/stuff/bagl/rust/src/either.rs /home/ben/stuff/bagl/rust/src/environment.rs /home/ben/stuff/bagl/rust/src/expr.rs /home/ben/stuff/bagl/rust/src/main.rs /home/ben/stuff/bagl/rust/src/parse.rs

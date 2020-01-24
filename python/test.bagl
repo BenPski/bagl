@@ -1,0 +1,14 @@
+let
+    id = \ x . x ;
+    map = (\ f . (\ xs . (if (null xs) (Nil) (Cons (f (head xs)) (map f (tail xs))))));
+    fold = (\ f . (\ acc . (\ xs . (if (null xs) acc (fold f (f (head xs) acc) (tail xs))))));
+    sum = fold + 0 ;
+    fmap = (\ f . (fold (\ a . (\ b . (Cons (f a) b))) Nil));
+    last = (\ xs . (if (null (tail xs)) (head xs) (last (tail xs))));
+    take = (\ n . (\ xs . (if (null xs) (Nil) (if (== n 0) (Nil) (Cons (head xs) (take (- n 1) (tail xs)))))));
+    list = (Cons 1 (Cons 2 (Cons 3 Nil)));
+    g = (\ x . (+ x 1));
+    fromTo = (\ a . (\ b . (if (== a b) (Cons a Nil) (Cons a (fromTo (+ 1 a) b)))));
+    even = (\ x . (if (== x 0) True (odd (- x 1)))) ;
+    odd = (\ x . (if (== x 0) False (even (- x 1)))) ;
+in (sum (map (+ 1) (fromTo 1 5)))

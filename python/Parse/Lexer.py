@@ -26,7 +26,7 @@ lex (c:cs) = let t = case c of
 from Parse.TokenType import TokenType as TT
 from Parse.Token import Token
 
-keywords = {'if': TT.IF, 'let': TT.LET, 'in': TT.IN, 'True': TT.TRUE, 'False': TT.FALSE}
+keywords = {'if': TT.IF, 'let': TT.LET, 'letrec': TT.LETREC, 'in': TT.IN, 'True': TT.TRUE, 'False': TT.FALSE}
 
 
 def lex(string, tokens=None, line=1, column=1):

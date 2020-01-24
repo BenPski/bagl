@@ -17,6 +17,20 @@ Representation
 """
 
 
+class Environment():
+    def __init__(self):
+        self.scopes = [{}]  # always starts empty
+
+    def add(self, env):
+        self.scopes.append(env)
+
+    def lookup(self, s):
+        for scope in reversed(self.scopes):
+            if s in scope:
+                return scope[s]
+        return None
+
+
 class Expr():
     """
     The expression tree object for lambda calculus in de bruijn form
@@ -45,6 +59,7 @@ class Variable(Expr):
     """
 
     def __init__(self, s):
+        self.env = Environment()
         self.s = s
 
     def accept(self, visitor):
@@ -75,6 +90,21 @@ class Apply(Expr):
 
     def accept(self, visitor):
         return visitor.visitApply(self)
+
+
+class Letrec(Expr):
+    """
+    Recursive let
+    store list of variables and values that should be available in the expression
+    """
+
+    def __init__(self, vars, vals, expr):
+        self.vars = vars
+        self.vals = vals
+        self.expr = expr
+
+    def accept(self, visitor):
+        return visitor.visitLetrec(self)
 
 
 class Bottom(Expr):
@@ -132,6 +162,14 @@ class Number(Expr):
 
     def accept(self, visitor):
         return visitor.visitNumber(self)
+
+
+class String(Expr):
+    def __init__(self, s):
+        self.s = s
+
+    def accept(self, visitor):
+        return visitor.visitString(self)
 
 
 class Data(Expr):
@@ -286,6 +324,24 @@ class Equal(Builtin):
         return "=="
 
 
+class NEqual(Builtin):
+    @property
+    def args(self):
+        return 2
+
+    def func(self, args, spine):
+        if isinstance(args[0], Number) and isinstance(args[1], Number):
+            if args[0].n == args[1].n:
+                return FALSE()
+            else:
+                return TRUE()
+        else:
+            raise RuntimeError("Equality between numbers only.")
+
+    def show(self):
+        return "!="
+
+
 class Head(Builtin):
     @property
     def args(self):
@@ -320,6 +376,39 @@ class Tail(Builtin):
                 raise RuntimeError("Empty list has no tail")
         else:
             raise RuntimeError("Tail only works on lists")
+
+
+class Null(Builtin):
+    @property
+    def args(self):
+        return 1
+
+    def func(self, args, spine):
+        if isinstance(args[0], Data) and args[0].type == "List":
+            if isinstance(args[0], Nil):
+                return TRUE()
+            else:
+                return FALSE()
+        else:
+            raise RuntimeError("Null only works on lists")
+
+    def show(self):
+        return "null"
+
+
+class Concat(Builtin):
+    @property
+    def args(self):
+        return 2
+
+    def func(self, args, spine):
+        if isinstance(args[0], String) and isinstance(args[1], String):
+            return String(args[0].s + args[1].s)
+        else:
+            raise RuntimeError("Can only concatenate sttrings")
+
+    def show(self):
+        return "concat"
 
 
 class Value(Expr):
