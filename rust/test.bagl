@@ -1,6 +1,40 @@
-let
-    id = \ x . x
-    indirect = \x . (id x)
-    f = \ x . (let y = x in y)
-    t = \x.\y.x
-in (f f indirect indirect id id id t)
+//
+Bool : True | False
+List a : Cons a (List a) | Nil
+Pair a b : Pair a b
+Option a : Some a | None
+
+fst x = case x [
+            (Pair a b) -> a
+            ]
+
+snd x = case x [
+            (Pair a b) -> b
+            ]
+
+
+if x a b = case x [
+            True -> a
+            False -> b
+            ]
+
+head x = case x [
+            (Cons a as) -> Some a
+            Nil -> None
+            ]
+
+tail x = case x [
+            (Cons a as) -> Some as
+            Nil -> None
+            ]
+
+fromMaybe def val = case val [
+                        Some a -> a
+                        None -> def
+                        ]
+
+// infinite data
+x = Cons 1 x
+
+
+main = fromMaybe undefined (head x)

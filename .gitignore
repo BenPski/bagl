@@ -1,5 +1,6 @@
 .idea/
 python/.idea
 python/__pycache__
+rust/target
 **/__pycache__
 stale_outputs_checked
