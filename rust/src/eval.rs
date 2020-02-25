@@ -95,9 +95,7 @@ pub fn eval(expr: Rc<Expr>, env: Rc<Env>) -> Rc<Expr> {
                             Rc::clone(&expr_update),
                         );
                     }
-                    // println!("{:?}, {:?}", vars, defs);
                     return eval(Rc::clone(&expr_update), env);
-                // return eval(Rc::new(Expr::Let(vars, defs, Rc::clone(&branches[i]))), env);
                 } else {
                     i += 1;
                 }
@@ -126,13 +124,13 @@ fn eval_app(left: Rc<Expr>, right: Rc<Expr>, env: Rc<Env>) -> Rc<Expr> {
         ),
         Expr::Data(args, t, s, fields) => {
             if fields.len() < *args {
-                let mut fields = fields.to_vec();
-                fields.push(right);
+                let mut new_fields = fields.to_vec();
+                new_fields.push(right);
                 Rc::new(Expr::Data(
                     *args,
                     t.to_string(),
                     s.to_string(),
-                    fields.to_vec(),
+                    new_fields.to_vec(),
                 ))
             } else {
                 panic!(
@@ -156,28 +154,9 @@ fn eval_app(left: Rc<Expr>, right: Rc<Expr>, env: Rc<Env>) -> Rc<Expr> {
                 );
             }
         }
-        _ => eval(left, env),
+        _ => panic!("Can't evaluate application {}, {}", left, right),
     }
 }
-
-// pub fn strict(expr: Rc<Expr>) -> Rc<Expr> {
-//     // want to evaluate strictly on the first argument to a lambda
-//     match &*expr {
-//         Expr::App(left, right) => strict(strict_app(Rc::clone(left), Rc::clone(right))),
-//         Expr::Bottom => panic!("Tried to evaluate bottom."),
-//         _ => expr,
-//     }
-// }
-
-// fn strict_app(left: Rc<Expr>, right: Rc<Expr>) -> Rc<Expr> {
-//     match &*left {
-//         Expr::Lam(head, body) => substitute(right, Rc::clone(head), Rc::clone(body)),
-//         Expr::App(left2, right2) => {
-//             strict_app(strict_app(Rc::clone(left2), Rc::clone(right2)), right)
-//         }
-//         _ => strict(left),
-//     }
-// }
 
 fn substitute(val: Rc<Expr>, var: Rc<Expr>, expr: Rc<Expr>) -> Rc<Expr> {
     match &*expr {
@@ -210,28 +189,28 @@ fn substitute(val: Rc<Expr>, var: Rc<Expr>, expr: Rc<Expr>) -> Rc<Expr> {
             substitute(val, var, Rc::clone(right)),
         )),
         // not sure if necessary for builtins and data
-        Expr::Builtin(args, s, func, fields) => {
-            let mut new_fields = fields.to_vec();
-            for field in fields {
-                new_fields.push(substitute(
-                    Rc::clone(&val),
-                    Rc::clone(&var),
-                    Rc::clone(field),
-                ));
-            }
-            Rc::new(Expr::Builtin(*args, s.to_string(), *func, new_fields))
-        }
-        Expr::Data(args, t, s, fields) => {
-            let mut new_fields = fields.to_vec();
-            for field in fields {
-                new_fields.push(substitute(
-                    Rc::clone(&val),
-                    Rc::clone(&var),
-                    Rc::clone(field),
-                ));
-            }
-            Rc::new(Expr::Data(*args, t.to_string(), s.to_string(), new_fields))
-        }
+        // Expr::Builtin(args, s, func, fields) => {
+        //     let mut new_fields = fields.to_vec();
+        //     for field in fields {
+        //         new_fields.push(substitute(
+        //             Rc::clone(&val),
+        //             Rc::clone(&var),
+        //             Rc::clone(field),
+        //         ));
+        //     }
+        //     Rc::new(Expr::Builtin(*args, s.to_string(), *func, new_fields))
+        // }
+        // Expr::Data(args, t, s, fields) => {
+        //     let mut new_fields = fields.to_vec();
+        //     for field in fields {
+        //         new_fields.push(substitute(
+        //             Rc::clone(&val),
+        //             Rc::clone(&var),
+        //             Rc::clone(field),
+        //         ));
+        //     }
+        //     Rc::new(Expr::Data(*args, t.to_string(), s.to_string(), new_fields))
+        // }
         Expr::Let(vars, defs, body) => {
             let mut new_defs = Vec::new();
             for def in defs {
@@ -276,9 +255,24 @@ fn push_depth(expr: Rc<Expr>, n: usize) {
     match &*expr {
         Expr::Var(_, _) => set_depth(expr, n),
         Expr::Lam(_, body) => push_depth(Rc::clone(body), n),
+        Expr::If(cond, b1, b2) => {
+            push_depth(Rc::clone(cond), n);
+            push_depth(Rc::clone(b1), n);
+            push_depth(Rc::clone(b2), n);
+        }
         Expr::App(left, right) => {
             push_depth(Rc::clone(left), n);
             push_depth(Rc::clone(right), n);
+        }
+        Expr::Data(_, _, _, fields) => {
+            for field in fields {
+                push_depth(Rc::clone(field), n);
+            }
+        }
+        Expr::Builtin(_, _, _, fields) => {
+            for field in fields {
+                push_depth(Rc::clone(field), n);
+            }
         }
         _ => {}
     }

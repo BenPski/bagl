@@ -19,7 +19,10 @@ tail = (\xs . case xs {
     Nil -> undefined
 });
 
-fold = (\f . (\acc . (\xs . (if (null xs) (acc) (fold f (f acc (head xs)) (tail xs))))));
+foldl = (\f . (\acc . (\xs . (if (null xs) (acc) (let z = f acc (head xs) in foldl f z (tail xs))))));
+foldr = (\f . (\acc . (\xs . (if (null xs) (acc) (f (head xs) (foldr f acc (tail xs)))))));
+
+map = (\f . (\xs . foldr (\a. (\b. Cons (f a) b)) Nil xs));
 
 id = \x.x;
 
@@ -38,10 +41,10 @@ pair = Pair 1;
 
 fact = (\ n . if (eq n 1) (1) (* n (fact (- n 1))));
 
-sum = fold + 0;
-prod = fold * 1;
+sum = foldl + 0;
+prod = foldr * 1;
 
-fromTo = (\a . (\b. if (eq a b) (Nil) (Cons a (fromTo (+ 1 a) b))));
+fromTo = (\a . (\b. if (eq a b) (Cons a Nil) (Cons a (fromTo (+ 1 a) b))));
 
 
-main = sum (fromTo 1 10)
+main = map (+ 1) (fromTo 1 10)
