@@ -1,40 +1,47 @@
-//
-Bool : True | False
-List a : Cons a (List a) | Nil
-Pair a b : Pair a b
-Option a : Some a | None
+Bool = True | False;
 
-fst x = case x [
-            (Pair a b) -> a
-            ]
+Unit = Unit;
 
-snd x = case x [
-            (Pair a b) -> b
-            ]
+List a = Cons a (List a) | Nil;
+
+Pair a b = Pair a b;
 
 
-if x a b = case x [
-            True -> a
-            False -> b
-            ]
+null = (\ xs . case xs {Nil -> True; _ -> False});
 
-head x = case x [
-            (Cons a as) -> Some a
-            Nil -> None
-            ]
+head = (\xs . case xs {
+    Cons a as -> a;
+    Nil -> undefined
+});
 
-tail x = case x [
-            (Cons a as) -> Some as
-            Nil -> None
-            ]
+tail = (\xs . case xs {
+    Cons a as -> as;
+    Nil -> undefined
+});
 
-fromMaybe def val = case val [
-                        Some a -> a
-                        None -> def
-                        ]
+fold = (\f . (\acc . (\xs . (if (null xs) (acc) (fold f (f acc (head xs)) (tail xs))))));
 
-// infinite data
-x = Cons 1 x
+id = \x.x;
 
 
-main = fromMaybe undefined (head x)
+list = Cons 1 (Cons 2 (Cons 3 Nil));
+
+fact = (\n . case n {
+    Z -> one;
+    S x -> mult n (fact x)
+});
+
+add_one = + 1;
+
+pair = Pair 1;
+
+
+fact = (\ n . if (eq n 1) (1) (* n (fact (- n 1))));
+
+sum = fold + 0;
+prod = fold * 1;
+
+fromTo = (\a . (\b. if (eq a b) (Nil) (Cons a (fromTo (+ 1 a) b))));
+
+
+main = sum (fromTo 1 10)

@@ -1,0 +1,195 @@
+use std::str::FromStr;
+use crate::ast::Expr;
+use crate::ast::Definition;
+use crate::ast::Toplevel;
+use crate::ast::Pattern;
+use std::rc::Rc;
+use crate::info::*;
+use std::cell::RefCell;
+use crate::builtins::*;
+use num::bigint::BigInt;
+
+
+grammar;
+
+
+// parse toplevel stuff 
+pub Top: Toplevel = {
+    <defs: Top> ";" <def: Definition> => {
+        let mut defs = defs;
+        defs.defs.push(Definition::new(def.0, def.1));
+        defs
+    },
+    <defs: Top> ";" <def: Data> => {
+        let mut defs = defs;
+        let data = create_data_info(def.0, def.1).to_definitions();
+        for d in data {
+            defs.data.push(d);
+        }
+        defs
+    },
+    <def: Data> => {
+        Toplevel {data: create_data_info(def.0, def.1).to_definitions(), defs: Vec::new()}
+    },
+    <def: Definition> => {
+        Toplevel {data: Vec::new(), defs: vec!(Definition::new(def.0, def.1))}
+    }
+}
+
+
+Expr: Rc<Expr> = {
+	// lambda
+	"\\" <head:Var> "." <body:Expr> => Rc::new(Expr::Lam(Rc::new(Expr::Var(head, RefCell::new(1))), Rc::clone(&body))),
+    // let
+    "let" <defs: Definitions> "in" <body: Expr> => {
+        let mut vars = Vec::new();
+        let mut definitions = Vec::new();
+        for i in 0..defs.len() {
+            vars.push(Rc::clone(&defs[i].0));
+            definitions.push(Rc::clone(&defs[i].1));
+        }
+        Rc::new(Expr::Let(vars, definitions, body))
+    },
+    //case
+    "case" <expr: Expr> "{" <arms: CaseArms> "}" => {
+        let mut pats = Vec::new();
+        let mut branches = Vec::new();
+        for arm in arms {
+            pats.push(arm.0);
+            branches.push(arm.1);
+        }
+        Rc::new(Expr::Case(expr, pats, branches))
+    },
+    // if
+    "if" "(" <cond:Expr> ")" "(" <b1:Expr> ")" "(" <b2:Expr> ")" => Rc::new(Expr::If(cond, b1, b2)),
+    // lazy and force
+    "lazy" <expr:Expr> => Rc::new(Expr::Lazy(expr)),
+    "force" <expr:Expr> => Rc::new(Expr::Force(expr)),
+	// data
+	// "data" <typ: TExpr> "=" <defs: DExprs> => {
+	// 	println!("{:?}", typ);
+	// 	println!("{:?}", defs);
+ //        // let info = create_data_info(typ, defs);
+ //        // Rc::new(Expr::Let)
+	// 	Rc::new(Expr::Var("data".to_string()))
+	// },
+	// application
+	FExpr,
+}
+
+CaseArms: Vec<(Pattern, Rc<Expr>)> = {
+    <arms: CaseArms> ";" <arm: CaseArm> => {
+        let mut arms = arms;
+        arms.push(arm);
+        arms
+    },
+    <arm: CaseArm> => vec!(arm),
+}
+
+CaseArm: (Pattern, Rc<Expr>) = {
+    <pat: Pattern> "->" <expr: Expr> => (pat, expr),
+}
+
+// pattern for case expression
+// is either a single variable, or a constructor and some amount of variables
+Pattern: Pattern = {
+    <pat: Pattern> <var: Var> => {
+        if let Pattern::Construct(cons, vars) = pat {
+            let mut vars = vars;
+            vars.push(var);
+            Pattern::Construct(cons, vars)
+        } else {
+            panic!("Malformed pattern.")
+        }
+    },
+    Cons => Pattern::Construct(<>, Vec::new()),
+    Var => Pattern::Irrefutable(<>),
+}
+
+Definitions: Vec<(Rc<Expr>, Rc<Expr>)> = {
+    <defs: Definitions> ";" <def: Definition> => {
+        let mut defs = defs;
+        defs.push(def);
+        defs
+    },
+    <def: Definition> => vec!(def),
+}
+
+Definition: (Rc<Expr>, Rc<Expr>) = {
+    <a:Assign> "=" <expr: Expr> => (Rc::new(Expr::Var(a, RefCell::new(1))), expr),
+}
+
+Assign : String = {
+    Var => <>,
+}
+
+Data: (Vec<String>, Vec<Vec<Vec<String>>>) = {
+    <typ: TExpr> "=" <defs: DExprs> => {
+        (typ, defs)
+    }
+}
+
+// need some indirection to make sure things aren't ambiguous
+FExpr: Rc<Expr> = {
+	<left: FExpr> <right: AExpr> => Rc::new(Expr::App(Rc::clone(&left), Rc::clone(&right))),
+	AExpr,
+}
+
+AExpr: Rc<Expr> = {
+	Var => Rc::new(Expr::Var(<>, RefCell::new(1))),
+	Cons => Rc::new(Expr::Var(<>, RefCell::new(1))),
+	Int => Rc::new(Expr::Int(<>)),
+	Float => Rc::new(Expr::Float(<>)),
+    "+" => Rc::new(Expr::Builtin(2, "+".to_string(), add, Vec::new())),
+    "-" => Rc::new(Expr::Builtin(2, "-".to_string(), sub, Vec::new())),
+    "*" => Rc::new(Expr::Builtin(2, "*".to_string(), mult, Vec::new())),
+    "/" => Rc::new(Expr::Builtin(2, "/".to_string(), div, Vec::new())),
+    "eq" => Rc::new(Expr::Builtin(2, "==".to_string(), eq, Vec::new())),
+    "undefined" => Rc::new(Expr::Bottom),
+	"(" <x:Expr> ")" => x,
+}
+
+
+TExpr: Vec<String> = {
+	<left: TExpr> <right: TAExpr> => {
+		let mut args = left;
+		args.push(right);
+		args
+	},
+	<cons: Cons> => vec!(cons),
+}
+TAExpr: String = {
+	Var => <>,
+}
+
+DExpr: Vec<Vec<String>> = {
+	<left: DExpr> <right: DAExpr> => {
+		let mut args = left;
+		args.push(right);
+		args
+	},
+	<cons: Cons> => vec!(vec!(cons)),
+}
+
+DAExpr: Vec<String> = {
+	Var => vec!(<>),
+	Cons => vec!(<>),
+	"(" <x:TExpr> ")" => x,
+}
+
+DExprs: Vec<Vec<Vec<String>>> = {
+	<defs: DExprs> "|" <def:DExpr> => {
+		let mut defs = defs;
+		defs.push(def);
+		defs
+	},
+	<def: DExpr> => vec!(def),
+}
+
+
+
+
+Var: String = <s:r"[a-z_][A-z_]*"> => s.to_string();
+Cons: String = <s:r"[A-Z][a-z]*"> => s.to_string();
+Int: BigInt = <s:r"[0-9]+"> => BigInt::from_str(s).unwrap();
+Float: f64 = <s:r"[0-9]+\.[0-9]+"> => f64::from_str(s).unwrap();

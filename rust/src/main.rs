@@ -1,104 +1,46 @@
 /*
+switching to strict evaluation, just probably a better approach when interpreting things
 
-Now want to specialize the top level definitions to make the syntax more pleasant
+    will have to buitld in laziness somehow
 
-because of laziness need a specialized definition to start evaluation
-
-want to have the let be implicit for the top level and main is the place to enter evaluation
-
-id = \x.x
-
-main = id 1
-
-is equivalent to
-
-let
-    id = \x.x
-    main = id 1
-in main
-
-now parsing could be something like parsing a list of definitions and then converted to the let expression
-
-could also handle the mixing of tokens and expressions slightly differently
-    have an enum of: tokens, sugar, and expressions
-    use same recursive ascent parsing strategy (is it really recursive ascent?)
-
-also the lexer is gross with the edge case checking
-
-need to check if recursive calls with blow the stack as well in evaluation or change it to mutation
-
-
-Starting to include the syntactic sugar into the parsing
-
-first things are:
-    \x y . z => \x.\y.z
-    f x y = z => f = \x.\y.z
-
-could sort of deal with these internal to parsing or could separate them into specific sugar structures and then convert them
-
-Now have the desired syntax sugar for function definitions and now want data constructor definitions
-
-Bool = True | False
-    true = Data(0, "Bool", "True",false,Vec::new())
-    false = Data(0, "Bool", "False", false, Vec::new())
-
-List a = Cons a (List a) | Nil
-    cons = Data(2, "List", "Cons", false, Vec::new())
-    nil = Data(0, "List", "Nil", false, Vec::new())
-
-also do
-Bool = True
-     | False
-
- List a = Cons a (List a)
-        | Nil
-
-
-So for dealing with data constructors may just want to define the variables to be looked up in the environment
-
-Bool = True | False
-main = True
-=>
-let
-    True = Data()
-    False = Data()
-    main = True
-in main
-
-got cases and data working however a couple issues
-    environemnt and variables not being properly passed through case it seems
-    pattern is strict in variables that it shouldn't be
-
+still running into issues with where environments get mixed up
+    not quite sure how I'd like to do it
+    can store references to the environment in the variables
+    store some sort of depth in the environment
+    closures?
 
 */
-use std::env;
-use std::fs;
 
-pub mod environment;
-pub mod expr;
-pub mod either;
-pub mod builtin;
-
-pub mod parse;
-use parse::*;
-
-//pub mod parse_old;
-//use parse_old::*;
-
+pub mod ast;
+pub mod builtins;
+pub mod env;
 pub mod eval;
-use eval::*;
+pub mod info;
 
+extern crate num;
+
+use crate::ast::Expr;
+use std::cell::RefCell;
+use std::env as other_env;
+use std::fs;
+use std::rc::Rc;
+
+use crate::eval::eval;
+
+#[macro_use]
+extern crate lalrpop_util;
+
+lalrpop_mod!(pub gram); // synthesized by LALRPOP
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let args: Vec<String> = other_env::args().collect();
     let filename = &args[1];
     let source = fs::read_to_string(filename).expect("Couldn't read file.");
-    println!("{:?}", source);
-    println!();
-    println!("{:?}", lex(String::clone(&source)));
-    println!();
-    println!("{}", parse(lex(String::clone(&source))));
-    println!();
-    println!("{}", whnf(parse(lex(source))));
 
+    // let str = "Bool = True | False; Maybe a = Some a | None; List a = Cons a (List a) | Nil; head = (\\ x . case x {Cons a as -> Some a; Nil -> None}); not = (\\x . case x {True -> False; False -> True}); main = (head (Nil))";
+    let parse = gram::TopParser::new().parse(&source).unwrap();
+    let env = Rc::new(parse.to_env());
+    let expr = Rc::new(Expr::Var("main".to_string(), RefCell::new(1)));
+    // println!("environment:\n\t{}\nexpr:\n\t{}", env, expr);
+    println!("{}", eval(expr, env));
 }
