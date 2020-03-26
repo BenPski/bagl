@@ -1,31 +1,34 @@
 /*
-switching to strict evaluation, just probably a better approach when interpreting things
 
-    will have to buitld in laziness somehow
+Assume all lets are letrecs and then transform them into the proper lets and letrecs by analyzing the dependency graph
 
-still running into issues with where environments get mixed up
-    not quite sure how I'd like to do it
-    can store references to the environment in the variables
-    store some sort of depth in the environment
-    closures?
+Now onto type checking
+    have everything worked out except cases
 
 */
 
 pub mod ast;
 pub mod builtins;
+pub mod check;
 pub mod env;
 pub mod eval;
 pub mod info;
+pub mod rearrange;
+pub mod scan;
 
 extern crate num;
 
-use crate::ast::Expr;
-use std::cell::RefCell;
+// use crate::ast::Expr;
+use crate::env::Env;
+use crate::rearrange::change_lets;
+// use std::cell::RefCell;
+// use std::collections::HashMap;
 use std::env as other_env;
 use std::fs;
 use std::rc::Rc;
 
 use crate::eval::eval;
+use crate::scan::resolve;
 
 #[macro_use]
 extern crate lalrpop_util;
@@ -39,8 +42,15 @@ fn main() {
 
     // let str = "Bool = True | False; Maybe a = Some a | None; List a = Cons a (List a) | Nil; head = (\\ x . case x {Cons a as -> Some a; Nil -> None}); not = (\\x . case x {True -> False; False -> True}); main = (head (Nil))";
     let parse = gram::TopParser::new().parse(&source).unwrap();
-    let env = Rc::new(parse.to_env());
-    let expr = Rc::new(Expr::Var("main".to_string(), RefCell::new(1)));
+    let expr = parse.to_let();
+    resolve(Rc::clone(&expr), 0);
+    let expr = change_lets(expr);
+    // println!("{}", expr);
+    // println!("{}", expr);
+    // let env = Rc::new(parse.to_env());
+    // let expr = Rc::new(Expr::Var("main".to_string(), RefCell::new(1)));
     // println!("environment:\n\t{}\nexpr:\n\t{}", env, expr);
-    println!("{}", eval(expr, env));
+    // println!("{}", eval(expr, env));
+    println!("{}", eval(expr, Rc::new(Env::Empty), Vec::new()));
+    // println!("{}", expr);
 }

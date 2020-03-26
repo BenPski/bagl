@@ -1,50 +1,40 @@
 Bool = True | False;
-
 Unit = Unit;
-
 List a = Cons a (List a) | Nil;
 
 Pair a b = Pair a b;
 
+Maybe a = Some a | None;
 
-null = (\ xs . case xs {Nil -> True; _ -> False});
+second x = head (tail x);
+head x = case x {Cons a b -> a; Nil -> error "empty list has no head"};
+tail x = case x {Cons a b -> b; Nil -> error "empty list has no tail"};
 
-head = (\xs . case xs {
-    Cons a as -> a;
-    Nil -> undefined
-});
+or x = case x {True -> (\_ . True); False -> (\y . y)};
 
-tail = (\xs . case xs {
-    Cons a as -> as;
-    Nil -> undefined
-});
+fib n = if (or (eq n 1) (eq n 0)) then 1 else + (fib (- n 1)) (fib (- n 2));
 
-foldl = (\f . (\acc . (\xs . (if (null xs) (acc) (let z = f acc (head xs) in foldl f z (tail xs))))));
-foldr = (\f . (\acc . (\xs . (if (null xs) (acc) (f (head xs) (foldr f acc (tail xs)))))));
+sum n = if (eq n 0) then 0 else + n (sum (- n 1));
 
-map = (\f . (\xs . foldr (\a. (\b. Cons (f a) b)) Nil xs));
+fact n = if (eq n 0) then 1 else * n (fact (- n 1));
 
-id = \x.x;
+not x = case x { True -> False; _ -> True};
+const x = case x {_ -> True};
 
+fst x = case x {Pair a b -> a};
+snd x = case x {Pair a b -> b};
 
-list = Cons 1 (Cons 2 (Cons 3 Nil));
-
-fact = (\n . case n {
-    Z -> one;
-    S x -> mult n (fact x)
-});
-
-add_one = + 1;
-
-pair = Pair 1;
+inc x y = case x {Pair a b -> Pair (+ a y) (+ y y)};
 
 
-fact = (\ n . if (eq n 1) (1) (* n (fact (- n 1))));
+maybe def x = case x {Some a -> a; None -> def};
 
-sum = foldl + 0;
-prod = foldr * 1;
+test x = case x {1 -> "blah"; x -> + 1 x};
 
-fromTo = (\a . (\b. if (eq a b) (Cons a Nil) (Cons a (fromTo (+ 1 a) b))));
+even x = case x {0 -> True; _ -> odd (- x 1)};
+odd x = case x {0 -> False; _ -> even (- x 1)};
 
 
-main = map (+ 1) (fromTo 1 10)
+
+
+main = second (Cons 1 (Cons 2 (Cons 3 Nil)))

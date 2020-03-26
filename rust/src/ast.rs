@@ -1,5 +1,6 @@
 use crate::env::Env;
 use num::bigint::BigInt;
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
@@ -7,18 +8,19 @@ use std::rc::Rc;
 
 #[derive(Debug)]
 pub enum Expr {
-    Var(String, RefCell<usize>), // has to store the associated environment
+    Var(String, RefCell<usize>), // store the environment depth
     Int(BigInt),
     Float(f64),
+    Str(String),
     Lam(Rc<Expr>, Rc<Expr>),
     App(Rc<Expr>, Rc<Expr>),
-    Let(Vec<Rc<Expr>>, Vec<Rc<Expr>>, Rc<Expr>), // vars, defs, body
+    Let(Vec<Rc<Expr>>, Vec<Rc<Expr>>, Rc<Expr>), //vars, defs, body
+    LetRec(Vec<Rc<Expr>>, Vec<Rc<Expr>>, Rc<Expr>), // vars, defs, body
     Data(usize, String, String, Vec<Rc<Expr>>),  // arguments, type, constructor, fields
     Case(Rc<Expr>, Vec<Pattern>, Vec<Rc<Expr>>), // expression, patterns, branches
-    Lazy(Rc<Expr>),                              // unevaluated value
-    Force(Rc<Expr>),                             // force a lazy value
     If(Rc<Expr>, Rc<Expr>, Rc<Expr>),            // condition, branch 1, branch 2
     Builtin(usize, String, fn(Vec<Rc<Expr>>) -> Rc<Expr>, Vec<Rc<Expr>>), //arguments, representation, list of args to result, fields
+    Error(String), // halt program and print error
     Bottom,
 }
 
@@ -32,6 +34,7 @@ impl Display for Expr {
             App(left, right) => write!(f, "({} {})", left, right),
             Int(n) => write!(f, "{}", n),
             Float(n) => write!(f, "{}", n),
+            Str(s) => write!(f, "{}", s),
             Data(_args, _typ, str, fields) => {
                 write!(f, "({}", str)?;
                 for field in fields {
@@ -46,6 +49,13 @@ impl Display for Expr {
                 }
                 write!(f, "in {}", body)
             }
+            LetRec(vars, defs, body) => {
+                write!(f, "letrec ")?;
+                for i in 0..vars.len() {
+                    write!(f, "{} = {}; ", vars[i], defs[i])?;
+                }
+                write!(f, "in {}", body)
+            }
             Case(expr, pats, branches) => {
                 write!(f, "case {} of [", expr)?;
                 for i in 0..pats.len() {
@@ -53,8 +63,6 @@ impl Display for Expr {
                 }
                 write!(f, "]")
             }
-            Lazy(expr) => write!(f, "~{}", expr),
-            Force(expr) => write!(f, "force {}", expr),
             If(expr, b1, b2) => write!(f, "if {} {} {}", expr, b1, b2),
             Builtin(_, str, _, fields) => {
                 write!(f, "({}", str)?;
@@ -63,6 +71,7 @@ impl Display for Expr {
                 }
                 write!(f, ")")
             }
+            Error(s) => write!(f, "Error {}", s),
             Bottom => write!(f, "_|_"),
         }
     }
@@ -111,10 +120,10 @@ impl Toplevel {
             vars.push(Rc::clone(&d.assign));
             defs.push(Rc::clone(&d.def));
         }
-        Rc::new(Let(
+        Rc::new(LetRec(
             vars,
             defs,
-            Rc::new(Var("main".to_string(), RefCell::new(1))),
+            Rc::new(Var("main".to_string(), RefCell::new(0))),
         ))
     }
 
@@ -156,23 +165,31 @@ impl Display for Definition {
 
 #[derive(Debug, Clone)]
 pub enum Pattern {
+    Wildcard,                       // matches anything, but does not need to define a variable
     Irrefutable(String),            // just a variable, variables always match
     Construct(String, Vec<String>), // constructor name and the variables
+    Int(BigInt),                    // literal patterns
+    Float(f64),
+    Str(String),
 }
 
-use crate::ast::Pattern::*;
+// use crate::ast::Pattern;
 
 impl Display for Pattern {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Irrefutable(s) => write!(f, "{}", s),
-            Construct(cons, vars) => {
+            Pattern::Wildcard => write!(f, "_"),
+            Pattern::Irrefutable(s) => write!(f, "{}", s),
+            Pattern::Construct(cons, vars) => {
                 write!(f, "{}", cons)?;
                 for var in vars {
                     write!(f, " {}", var)?;
                 }
                 write!(f, "")
             }
+            Pattern::Int(i) => write!(f, "{}", i),
+            Pattern::Float(n) => write!(f, "{}", n),
+            Pattern::Str(s) => write!(f, "{}", s),
         }
     }
 }

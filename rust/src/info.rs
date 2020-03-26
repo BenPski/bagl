@@ -32,30 +32,31 @@ use crate::ast::Definition;
 use crate::ast::Expr;
 
 use crate::info::TypeInfo::*;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 
-enum TypeInfo {
+pub enum TypeInfo {
     TConstructor(String),               // a type constructor
     TApp(Box<TypeInfo>, Box<TypeInfo>), // type application
     TVar(String),                       // or a type variable
 }
 
 // products are the constructor name and the type arguments
-struct ProdInfo {
-    name: String,
-    args: Vec<TypeInfo>,
+pub struct ProdInfo {
+    pub name: String,
+    pub args: Vec<TypeInfo>,
 }
 
 // sum is a collection of products
-struct SumInfo {
-    alts: Vec<ProdInfo>,
+pub struct SumInfo {
+    pub alts: Vec<ProdInfo>,
 }
 
 // definition of a data type
 pub struct DataInfo {
-    type_info: TypeInfo,
-    data_info: SumInfo,
+    pub type_info: TypeInfo,
+    pub data_info: SumInfo,
 }
 
 impl TypeInfo {
@@ -132,7 +133,7 @@ impl DataInfo {
         let type_name = self.type_info.get_name();
         for item in &self.data_info.alts {
             let def = Definition::new(
-                Rc::new(Expr::Var(item.name.to_string(), RefCell::new(1))),
+                Rc::new(Expr::Var(item.name.to_string(), RefCell::new(0))),
                 Rc::new(Expr::Data(
                     item.args.len(),
                     type_name.to_string(),
@@ -166,34 +167,3 @@ pub fn create_data_info(lhs: Vec<String>, rhs: Vec<Vec<Vec<String>>>) -> DataInf
     }
     DataInfo::new(type_info, data_info)
 }
-
-// parsing for rewrite rules (expand all possibilities to look for)
-
-// use crate::ast::Expr;
-// use std::rc::Rc;
-
-// struct TInfo {
-//     name: String, //the name of the type
-//     contents: Vec<String>, // the possible type arguments
-// }
-
-// impl TInfo {
-//     fn new(name: String) -> TInfo {
-//         TInfo {
-//             name: name,
-//             contents: vec![],
-//         }
-//     }
-//     fn add(&mut self, var: String) {
-//         self.contents.push(var);
-//     }
-// }
-
-// enum DInfo {
-//     Wildcard, //
-// }
-
-// struct DInfo {
-// 	name: String,
-
-// }

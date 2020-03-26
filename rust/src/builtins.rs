@@ -14,7 +14,10 @@ pub fn add(args: Vec<Rc<Expr>>) -> Rc<Expr> {
             if let Expr::Int(b) = Rc::deref(&args[1]) {
                 Rc::new(Expr::Int(a + b))
             } else {
-                panic!("Can only add numbers of the same type.");
+                panic!(
+                    "Can only add numbers of the same type. {} {}",
+                    args[0], args[1]
+                );
             }
         }
         Expr::Float(a) => {

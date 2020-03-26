@@ -5,9 +5,9 @@ use crate::ast::Toplevel;
 use crate::ast::Pattern;
 use std::rc::Rc;
 use crate::info::*;
-use std::cell::RefCell;
 use crate::builtins::*;
 use num::bigint::BigInt;
+use std::cell::RefCell;
 
 
 grammar;
@@ -39,7 +39,17 @@ pub Top: Toplevel = {
 
 Expr: Rc<Expr> = {
 	// lambda
-	"\\" <head:Var> "." <body:Expr> => Rc::new(Expr::Lam(Rc::new(Expr::Var(head, RefCell::new(1))), Rc::clone(&body))),
+	// "\\" <head:Var> "." <body:Expr> => Rc::new(Expr::Lam(Rc::new(Expr::Var(head)), Rc::clone(&body))),
+    // multi-lambda
+    "\\" <args: Vars> "." <body: Expr> => {
+        let mut expr = Rc::clone(&body);
+        let mut args = args;
+        args.reverse();
+        for arg in args {
+            expr = Rc::new(Expr::Lam(Rc::new(Expr::Var(arg, RefCell::new(0))), Rc::clone(&expr)));
+        }
+        expr
+    },
     // let
     "let" <defs: Definitions> "in" <body: Expr> => {
         let mut vars = Vec::new();
@@ -48,8 +58,30 @@ Expr: Rc<Expr> = {
             vars.push(Rc::clone(&defs[i].0));
             definitions.push(Rc::clone(&defs[i].1));
         }
-        Rc::new(Expr::Let(vars, definitions, body))
+        // correct the order
+        vars.reverse();
+        definitions.reverse();
+        Rc::new(Expr::LetRec(vars, definitions, body))
     },
+    // "letrec" <defs: Definitions> "in" <body: Expr> => {
+    //     let mut vars = Vec::new();
+    //     let mut definitions = Vec::new();
+    //     for i in 0..defs.len() {
+    //         vars.push(Rc::clone(&defs[i].0));
+    //         definitions.push(Rc::clone(&defs[i].1));
+    //     }
+    //     Rc::new(Expr::LetRec(vars, definitions, body))
+    // },
+    // where
+    // <body: Expr> "where" "{" <defs: Definitions> "}" => {
+    //     let mut vars = Vec::new();
+    //     let mut definitions = Vec::new();
+    //     for i in 0..defs.len() {
+    //         vars.push(Rc::clone(&defs[i].0));
+    //         definitions.push(Rc::clone(&defs[i].1));
+    //     }
+    //     Rc::new(Expr::Let(vars, definitions, body))
+    // },
     //case
     "case" <expr: Expr> "{" <arms: CaseArms> "}" => {
         let mut pats = Vec::new();
@@ -61,10 +93,16 @@ Expr: Rc<Expr> = {
         Rc::new(Expr::Case(expr, pats, branches))
     },
     // if
-    "if" "(" <cond:Expr> ")" "(" <b1:Expr> ")" "(" <b2:Expr> ")" => Rc::new(Expr::If(cond, b1, b2)),
-    // lazy and force
-    "lazy" <expr:Expr> => Rc::new(Expr::Lazy(expr)),
-    "force" <expr:Expr> => Rc::new(Expr::Force(expr)),
+    "if" <cond:Expr> "then" <b1:Expr> "else" <b2:Expr> => Rc::new(Expr::If(cond, b1, b2)),
+    // {
+    //     let branch1 = Rc::new(Expr::Lam(Rc::new(Expr::Var("_".to_string())), b1));
+    //     let branch2 = Rc::new(Expr::Lam(Rc::new(Expr::Var("_".to_string())), b2));
+    //     let cond = Rc::new(Expr::App(Rc::new(Expr::App(cond, branch1)), branch2));
+    //     Rc::new(Expr::App(cond, Rc::new(Expr::Int(BigInt::from(0)))))
+    // }
+    // lazy and force, force just needs an arbitrary argument
+    // "lazy" <expr:Expr> => Rc::new(Expr::Lam(Rc::new(Expr::Var("_".to_string(), RefCell::new(0))), expr)),//Rc::new(Expr::Lazy(expr)),
+    // "force" <expr:Expr> => Rc::new(Expr::App(expr, Rc::new(Expr::Int(BigInt::from(0))))),//Rc::new(Expr::Force(expr)),
 	// data
 	// "data" <typ: TExpr> "=" <defs: DExprs> => {
 	// 	println!("{:?}", typ);
@@ -75,6 +113,16 @@ Expr: Rc<Expr> = {
 	// },
 	// application
 	FExpr,
+}
+
+Vars: Vec<String> = {
+    <args: Vars> <arg: Var> => {
+        let mut args = args;
+        args.push(arg);
+        args
+    },
+    <arg:Var> => vec!(arg),
+    "_" => vec!("_".to_string()),
 }
 
 CaseArms: Vec<(Pattern, Rc<Expr>)> = {
@@ -104,6 +152,10 @@ Pattern: Pattern = {
     },
     Cons => Pattern::Construct(<>, Vec::new()),
     Var => Pattern::Irrefutable(<>),
+    "_" => Pattern::Wildcard,
+    Int => Pattern::Int(<>),
+    Float => Pattern::Float(<>),
+    Text => Pattern::Str(<>),
 }
 
 Definitions: Vec<(Rc<Expr>, Rc<Expr>)> = {
@@ -116,7 +168,25 @@ Definitions: Vec<(Rc<Expr>, Rc<Expr>)> = {
 }
 
 Definition: (Rc<Expr>, Rc<Expr>) = {
-    <a:Assign> "=" <expr: Expr> => (Rc::new(Expr::Var(a, RefCell::new(1))), expr),
+    // <a:Assign> "=" <expr: Expr> => (Rc::new(Expr::Var(a)), expr),
+    <vars: Vars> "=" <expr: Expr> => {
+        let mut vars = vars;
+        let mut expr = expr;
+        while vars.len() > 1 {
+            let arg = vars.pop();
+            if let Some(a) = arg {
+                expr = Rc::new(Expr::Lam(Rc::new(Expr::Var(a, RefCell::new(0))), Rc::clone(&expr)));
+            } else {
+                panic!("Failed to pop for definition.")
+            }
+        }
+        let a = vars.pop();
+        if let Some(assign) = a {
+            (Rc::new(Expr::Var(assign, RefCell::new(0))), expr)
+        } else {
+            panic!("Ran out of variables to assign to.")
+        }        
+    },
 }
 
 Assign : String = {
@@ -136,15 +206,17 @@ FExpr: Rc<Expr> = {
 }
 
 AExpr: Rc<Expr> = {
-	Var => Rc::new(Expr::Var(<>, RefCell::new(1))),
-	Cons => Rc::new(Expr::Var(<>, RefCell::new(1))),
+	Var => Rc::new(Expr::Var(<>, RefCell::new(0))),
+	Cons => Rc::new(Expr::Var(<>, RefCell::new(0))),
 	Int => Rc::new(Expr::Int(<>)),
 	Float => Rc::new(Expr::Float(<>)),
+    Text => Rc::new(Expr::Str(<>)),
     "+" => Rc::new(Expr::Builtin(2, "+".to_string(), add, Vec::new())),
     "-" => Rc::new(Expr::Builtin(2, "-".to_string(), sub, Vec::new())),
     "*" => Rc::new(Expr::Builtin(2, "*".to_string(), mult, Vec::new())),
     "/" => Rc::new(Expr::Builtin(2, "/".to_string(), div, Vec::new())),
     "eq" => Rc::new(Expr::Builtin(2, "==".to_string(), eq, Vec::new())),
+    "error" <t: Text> => Rc::new(Expr::Error(t)),
     "undefined" => Rc::new(Expr::Bottom),
 	"(" <x:Expr> ")" => x,
 }
@@ -186,6 +258,15 @@ DExprs: Vec<Vec<Vec<String>>> = {
 	<def: DExpr> => vec!(def),
 }
 
+// python like text
+Text: String = {
+    <s:r#""(([^\\"]|\\.)*)""#> => s[1..(s.len() - 1)].to_string(),
+    <s:r"'[^']*'"> => s[1..(s.len() - 1)].to_string()
+}
+
+Comment: () = {
+    <s:r"//[^\n\r]*[\n\r]*"> => {}
+}
 
 
 

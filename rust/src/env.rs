@@ -47,6 +47,14 @@ impl Env {
         }
     }
 
+    pub fn lookup_top(&self, s: &String) -> Option<&Rc<Expr>> {
+        // only look at the top of the environment
+        match self {
+            Empty => None,
+            Context(defs, _) => defs.get(s),
+        }
+    }
+
     pub fn depth(&self) -> usize {
         match self {
             Empty => 0,
@@ -73,5 +81,10 @@ impl Env {
 
     pub fn lookup_at(&self, s: &String, i: usize) -> Option<&Rc<Expr>> {
         self.sub_env(i).lookup(s)
+    }
+
+    pub fn lookup_in(&self, s: &String, i: usize) -> Option<&Rc<Expr>> {
+        // drop the top i envs then try to lookup variable
+        self.drop(i).lookup(s)
     }
 }
