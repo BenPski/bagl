@@ -12,8 +12,8 @@ Things to check:
 
 use crate::ast::Expr;
 use crate::ast::Pattern;
-use crate::info::DataInfo;
-use std::ops::Deref;
+// use crate::info::DataInfo;
+// use std::ops::Deref;
 use std::rc::Rc;
 
 fn check_pattern(pat: &Pattern) -> bool {
@@ -34,41 +34,41 @@ fn check_pattern(pat: &Pattern) -> bool {
     }
 }
 
-// unfortunately not carrying around the right information, can't do it right now
-fn check_total(info: DataInfo, expr: Rc<Expr>) -> bool {
-    // only works on case statements
-    // either there is a match all pattern or all contructors are found
-    // need to provide proper type info to know which constructors to look for
-    if let Expr::Case(_, pats, _) = Rc::deref(&expr) {
-        let mut found = Vec::new();
-        for pat in pats {
-            match pat {
-                Pattern::Wildcard => return true,
-                Pattern::Irrefutable(_) => return true,
-                Pattern::Construct(name, _) => found.push(name.to_string()),
-                _ => continue,
-            }
-        }
-        let mut names = Vec::new();
-        for def in info.data_info.alts {
-            names.push(def.name);
-        }
-        if names.len() != found.len() {
-            false
-        } else {
-            for name in names {
-                if found.contains(&name) {
-                    continue;
-                } else {
-                    return false;
-                }
-            }
-            true
-        }
-    } else {
-        panic!("Can only check cases for being total.")
-    }
-}
+// // unfortunately not carrying around the right information, can't do it right now
+// fn check_total(info: DataInfo, expr: Rc<Expr>) -> bool {
+//     // only works on case statements
+//     // either there is a match all pattern or all contructors are found
+//     // need to provide proper type info to know which constructors to look for
+//     if let Expr::Case(_, pats, _) = Rc::deref(&expr) {
+//         let mut found = Vec::new();
+//         for pat in pats {
+//             match pat {
+//                 Pattern::Wildcard => return true,
+//                 Pattern::Irrefutable(_) => return true,
+//                 Pattern::Construct(name, _) => found.push(name.to_string()),
+//                 _ => continue,
+//             }
+//         }
+//         let mut names = Vec::new();
+//         for def in info.data_info.alts {
+//             names.push(def.name);
+//         }
+//         if names.len() != found.len() {
+//             false
+//         } else {
+//             for name in names {
+//                 if found.contains(&name) {
+//                     continue;
+//                 } else {
+//                     return false;
+//                 }
+//             }
+//             true
+//         }
+//     } else {
+//         panic!("Can only check cases for being total.")
+//     }
+// }
 
 pub fn check_cases(expr: Rc<Expr>) -> bool {
     // go through ast and check all cases statements, if any are false it fails

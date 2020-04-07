@@ -30,6 +30,9 @@
 // type definition
 use crate::ast::Definition;
 use crate::ast::Expr;
+use crate::typecheck::add_arrows;
+use crate::typecheck::TExpr;
+use std::collections::HashMap;
 
 use crate::info::TypeInfo::*;
 
@@ -91,6 +94,20 @@ impl TypeInfo {
             }
         }
     }
+
+    fn to_texpr(&self, spine: Vec<Rc<TExpr>>) -> Rc<TExpr> {
+        match self {
+            TVar(s) => Rc::new(TExpr::TVar(s.to_string())),
+            TConstructor(s) => Rc::new(TExpr::TCons(s.to_string(), spine)),
+            TApp(left, right) => {
+                // push right on to spine
+                let arg = right.to_texpr(Vec::new());
+                let mut spine = spine;
+                spine.insert(0, arg);
+                left.to_texpr(spine)
+            }
+        }
+    }
 }
 
 impl ProdInfo {
@@ -145,6 +162,29 @@ impl DataInfo {
             defs.push(def);
         }
         defs
+    }
+
+    pub fn constructor_signatures(&self) -> HashMap<String, Rc<TExpr>> {
+        // make all the constructors signatures, just do vector of strings like how the builtins are done
+        // True: Bool
+        // False: Bool
+        // Some: a -> Maybe a
+        // Cons: a -> List a -> List a
+        // Nil: List a
+        let final_type = self.type_info.to_texpr(Vec::new());
+        let mut sigs = HashMap::new();
+        // go through all the alternatives of the sum and generate the signatures
+        // convert the typeinfo to texpr's and add arrows
+        for alt in &self.data_info.alts {
+            let name = &alt.name;
+            let mut args = Vec::new();
+            for t in &alt.args {
+                args.push(t.to_texpr(Vec::new()));
+            }
+            args.push(Rc::clone(&final_type));
+            sigs.insert(name.to_string(), add_arrows(args));
+        }
+        sigs
     }
 }
 

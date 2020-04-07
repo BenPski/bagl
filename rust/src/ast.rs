@@ -1,4 +1,5 @@
 use crate::env::Env;
+use crate::typecheck::TExpr;
 use num::bigint::BigInt;
 
 use std::cell::RefCell;
@@ -19,8 +20,14 @@ pub enum Expr {
     Data(usize, String, String, Vec<Rc<Expr>>),  // arguments, type, constructor, fields
     Case(Rc<Expr>, Vec<Pattern>, Vec<Rc<Expr>>), // expression, patterns, branches
     If(Rc<Expr>, Rc<Expr>, Rc<Expr>),            // condition, branch 1, branch 2
-    Builtin(usize, String, fn(Vec<Rc<Expr>>) -> Rc<Expr>, Vec<Rc<Expr>>), //arguments, representation, list of args to result, fields
-    Error(String), // halt program and print error
+    Builtin(
+        usize,
+        String,
+        fn(Vec<Rc<Expr>>) -> Rc<Expr>,
+        Vec<Rc<Expr>>,
+        Vec<String>,
+    ), //arguments, representation, list of args to result, fields, type
+    Error(String),                               // halt program and print error
     Bottom,
 }
 
@@ -34,7 +41,7 @@ impl Display for Expr {
             App(left, right) => write!(f, "({} {})", left, right),
             Int(n) => write!(f, "{}", n),
             Float(n) => write!(f, "{}", n),
-            Str(s) => write!(f, "{}", s),
+            Str(s) => write!(f, "\"{}\"", s),
             Data(_args, _typ, str, fields) => {
                 write!(f, "({}", str)?;
                 for field in fields {
@@ -64,7 +71,7 @@ impl Display for Expr {
                 write!(f, "]")
             }
             If(expr, b1, b2) => write!(f, "if {} {} {}", expr, b1, b2),
-            Builtin(_, str, _, fields) => {
+            Builtin(_, str, _, fields, _) => {
                 write!(f, "({}", str)?;
                 for field in fields {
                     write!(f, " {}", field)?;
@@ -91,6 +98,7 @@ impl PartialEq for Expr {
 pub struct Toplevel {
     pub data: Vec<Definition>,
     pub defs: Vec<Definition>,
+    pub signatures: HashMap<String, Rc<TExpr>>,
 }
 
 impl Display for Toplevel {
@@ -172,6 +180,26 @@ pub enum Pattern {
     Float(f64),
     Str(String),
 }
+
+// pub fn pat_to_expr(pat: Pattern) -> Rc<Expr> {
+//     match pat {
+//         Pattern::Wildcard => Rc::new(Expr::Var("_".to_string(), RefCell::new(0))),
+//         Pattern::Irrefutable(s) => Rc::new(Expr::Var(s.to_string(), RefCell::new(0))),
+//         Pattern::Int(i) => Rc::new(Expr::Int(i)),
+//         Pattern::Float(n) => Rc::new(Expr::Float(n)),
+//         Pattern::Str(s) => Rc::new(Expr::Str(s)),
+//         Pattern::Construct(cons, args) => {
+//             let mut expr = Rc::new(Expr::Data(0, "".to_string(), cons, Vec::new()));
+//             for arg in args {
+//                 expr = Rc::new(Expr::App(
+//                     expr,
+//                     Rc::new(Expr::Var("arg".to_string(), RefCell::new(0))),
+//                 ));
+//             }
+//             expr
+//         }
+//     }
+// }
 
 // use crate::ast::Pattern;
 

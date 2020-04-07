@@ -92,7 +92,7 @@ pub fn eval(expr: Rc<Expr>, env: Rc<Env>, spine: Vec<Rc<Expr>>) -> Rc<Expr> {
                 expr
             }
         }
-        Expr::Builtin(args, s, func, fields) => {
+        Expr::Builtin(args, s, func, fields, _) => {
             if *args == fields.len() {
                 func(fields.to_vec())
             } else if fields.len() < *args {
@@ -101,7 +101,13 @@ pub fn eval(expr: Rc<Expr>, env: Rc<Env>, spine: Vec<Rc<Expr>>) -> Rc<Expr> {
                     let mut fields = fields.to_vec();
                     fields.push(eval(def, Rc::clone(&env), spine.clone()));
                     eval(
-                        Rc::new(Expr::Builtin(*args, s.to_string(), *func, fields.to_vec())),
+                        Rc::new(Expr::Builtin(
+                            *args,
+                            s.to_string(),
+                            *func,
+                            fields.to_vec(),
+                            Vec::new(),
+                        )),
                         env,
                         spine,
                     )

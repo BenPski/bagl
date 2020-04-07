@@ -1,40 +1,22 @@
-Bool = True | False;
-Unit = Unit;
 List a = Cons a (List a) | Nil;
-
+Bool = True | False;
 Pair a b = Pair a b;
 
-Maybe a = Some a | None;
-
-second x = head (tail x);
-head x = case x {Cons a b -> a; Nil -> error "empty list has no head"};
-tail x = case x {Cons a b -> b; Nil -> error "empty list has no tail"};
-
-or x = case x {True -> (\_ . True); False -> (\y . y)};
-
-fib n = if (or (eq n 1) (eq n 0)) then 1 else + (fib (- n 1)) (fib (- n 2));
-
-sum n = if (eq n 0) then 0 else + n (sum (- n 1));
-
-fact n = if (eq n 0) then 1 else * n (fact (- n 1));
-
-not x = case x { True -> False; _ -> True};
-const x = case x {_ -> True};
 
 fst x = case x {Pair a b -> a};
 snd x = case x {Pair a b -> b};
 
-inc x y = case x {Pair a b -> Pair (+ a y) (+ y y)};
+head x = case x {Cons a as -> a; _ -> error "empty list"};
 
 
-maybe def x = case x {Some a -> a; None -> def};
+manip x = let a = add_int x 1 in case a {1 -> "was zero"; _ -> "something"};
 
-test x = case x {1 -> "blah"; x -> + 1 x};
+test x = case x {1 -> add_int x 1; _ -> 0};
 
-even x = case x {0 -> True; _ -> odd (- x 1)};
-odd x = case x {0 -> False; _ -> even (- x 1)};
+testpair x y = case (Pair x y) {Pair a b -> y};
 
+multicase x = case x {Cons a as -> case a {1 -> "bal"; _ -> "woo"}; Nil -> "peen"};
 
+casecond x = case (case x {1 -> True; _ -> False}) {True -> "one"; _ -> "other"};
 
-
-main = second (Cons 1 (Cons 2 (Cons 3 Nil)))
+main = casecond 1

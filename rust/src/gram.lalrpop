@@ -8,6 +8,7 @@ use crate::info::*;
 use crate::builtins::*;
 use num::bigint::BigInt;
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 
 grammar;
@@ -22,17 +23,23 @@ pub Top: Toplevel = {
     },
     <defs: Top> ";" <def: Data> => {
         let mut defs = defs;
-        let data = create_data_info(def.0, def.1).to_definitions();
+        let info = create_data_info(def.0, def.1);
+        let data = info.to_definitions();
+        let mut signatures = defs.signatures;
+        let sigs = info.constructor_signatures();
+        signatures.extend(sigs);
         for d in data {
             defs.data.push(d);
         }
+        defs.signatures = signatures;
         defs
     },
     <def: Data> => {
-        Toplevel {data: create_data_info(def.0, def.1).to_definitions(), defs: Vec::new()}
+        let d = create_data_info(def.0, def.1);
+        Toplevel {data: d.to_definitions(), defs: Vec::new(), signatures: d.constructor_signatures()}
     },
     <def: Definition> => {
-        Toplevel {data: Vec::new(), defs: vec!(Definition::new(def.0, def.1))}
+        Toplevel {data: Vec::new(), defs: vec!(Definition::new(def.0, def.1)), signatures: HashMap::new()}
     }
 }
 
@@ -211,11 +218,19 @@ AExpr: Rc<Expr> = {
 	Int => Rc::new(Expr::Int(<>)),
 	Float => Rc::new(Expr::Float(<>)),
     Text => Rc::new(Expr::Str(<>)),
-    "+" => Rc::new(Expr::Builtin(2, "+".to_string(), add, Vec::new())),
-    "-" => Rc::new(Expr::Builtin(2, "-".to_string(), sub, Vec::new())),
-    "*" => Rc::new(Expr::Builtin(2, "*".to_string(), mult, Vec::new())),
-    "/" => Rc::new(Expr::Builtin(2, "/".to_string(), div, Vec::new())),
-    "eq" => Rc::new(Expr::Builtin(2, "==".to_string(), eq, Vec::new())),
+    "add_int" => Rc::new(Expr::Builtin(2, "+".to_string(), add, Vec::new(), vec!["Int".to_string(), "Int".to_string(), "Int".to_string()])),
+    "add_float" => Rc::new(Expr::Builtin(2, "+".to_string(), add, Vec::new(), vec!["Float".to_string(), "Float".to_string(), "Float".to_string()])),
+    "mul_int" => Rc::new(Expr::Builtin(2, "*".to_string(), mult, Vec::new(), vec!["Int".to_string(), "Int".to_string(), "Int".to_string()])),
+    "mul_float" => Rc::new(Expr::Builtin(2, "*".to_string(), mult, Vec::new(), vec!["Float".to_string(), "Float".to_string(), "Float".to_string()])),
+    "sub_int" => Rc::new(Expr::Builtin(2, "-".to_string(), sub, Vec::new(), vec!["Int".to_string(), "Int".to_string(), "Int".to_string()])),
+    "sub_float" => Rc::new(Expr::Builtin(2, "-".to_string(), sub, Vec::new(), vec!["Float".to_string(), "Float".to_string(), "Float".to_string()])),
+    "div_int" => Rc::new(Expr::Builtin(2, "/".to_string(), div, Vec::new(), vec!["Int".to_string(), "Int".to_string(), "Int".to_string()])),
+    "div_float" => Rc::new(Expr::Builtin(2, "/".to_string(), div, Vec::new(), vec!["Float".to_string(), "Float".to_string(), "Float".to_string()])),
+    // "-" => Rc::new(Expr::Builtin(2, "-".to_string(), sub, Vec::new())),
+    // "*" => Rc::new(Expr::Builtin(2, "*".to_string(), mult, Vec::new())),
+    // "/" => Rc::new(Expr::Builtin(2, "/".to_string(), div, Vec::new())),
+    "eq_int" => Rc::new(Expr::Builtin(2, "==".to_string(), eq, Vec::new(), vec!["Int".to_string(), "Int".to_string(), "Bool".to_string()])),
+    "eq_float" => Rc::new(Expr::Builtin(2, "==".to_string(), eq, Vec::new(), vec!["Float".to_string(), "Float".to_string(), "Bool".to_string()])),
     "error" <t: Text> => Rc::new(Expr::Error(t)),
     "undefined" => Rc::new(Expr::Bottom),
 	"(" <x:Expr> ")" => x,
