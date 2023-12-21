@@ -1,0 +1,141 @@
+/*
+
+How I want bagl to look
+
+whitespace is significant, but can convert to inline syntax
+
+goal is to have everything automatically laid out nicely
+
+For example in haskell I don't like
+data Short a b = F a
+               | R b
+data ReallyLongName a b = OneThing a
+                        | OtherThing b
+
+the first is getting the bars to line up correctly is a bit tedious
+also having the defintions not line up in the same column looks ugly to me
+
+the other goal is by having the layout be strictly enforced all code should be a bit more readable
+
+
+one feature that I'd like to work on is:
+    currently the only short circuiting is available through if's
+    it would be nice if there was some other ways to do it without reverting to laziness
+
+*/
+
+// inforce spacing
+// exporting and importing will come later
+
+import:
+    Prelude
+    Data.Map as M
+    Catamorphism (foldr, foldl)
+
+export:
+    id
+
+data:
+    List a
+        Cons a (List a)
+        Nil
+    
+    Bool
+        True
+        False
+    
+    Pair a b
+        Pair a b
+
+    Option a
+        Some a
+        None
+
+// have import, export, and data sections and then everything else is a function
+// just about everything should be a single line
+
+// type signatures always a single line?
+
+id: a -> a
+id x:
+    x
+
+// always have gaps between patterns in case expressions
+// error should just cause the runtime to stop
+
+head: List a -> a
+head xs:
+    case xs:
+        Cons a as:
+            a
+
+        Nil 
+            error "can't handle head of empty list"
+
+headSafe: List a -> Option a
+headSafe xs:
+    case xs:
+        Cons a _ 
+            Some a
+
+        _ 
+            None
+
+// having else makes it more intuitive to read compared to not having it
+
+fact: Int -> Int
+fact n:
+    if <= n 1
+        1
+    else
+        * n (fact (- n 1))
+
+// let laid out as such
+
+foldl: (b -> a -> b) -> b -> List a -> b
+foldl f acc xs:
+    case xs:
+        Cons a as
+            let 
+                z = f acc a
+                useless = Unit
+            in
+                foldl f z as
+
+        Nil
+            Nil
+
+foldr: (a -> b -> b) -> b -> List a -> b
+foldr f acc xs
+    case xs:
+        Cons a as
+            f a (foldr f acc as)
+
+        Nil
+            Nil
+
+
+// where clause just like lets
+
+double: Int -> Int
+double x:
+    y
+    where
+        y = * 2 x
+
+// lambdas
+
+swap: (a -> b -> c) -> b -> a -> c
+swap = (\f b a . f a b)
+
+const: a -> b -> a
+const = (\x . (\y . x))
+
+sum: List Int -> Int
+//sum = foldl + 0
+sum = (\xs . foldl + 0 xs)
+
+reverse: List a -> List a
+reverse = foldl (swap Cons) Nil
+
+

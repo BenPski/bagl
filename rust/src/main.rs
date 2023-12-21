@@ -45,74 +45,38 @@ if: Bool -> a -> a -> a
 
 */
 
-pub mod ast;
-pub mod builtins;
-pub mod check;
-pub mod env;
-pub mod eval;
-pub mod info;
-pub mod rearrange;
-pub mod scan;
-pub mod typecheck;
+pub mod core;
+pub mod pretty;
+pub mod parse;
 
-extern crate num;
-
-// use crate::ast::Expr;
-use crate::env::Env;
-use crate::rearrange::change_lets;
-use crate::typecheck::tenv_from_sigs;
-use crate::typecheck::type_check_def;
-// use std::cell::RefCell;
-
-use std::env as other_env;
 use std::fs;
-use std::rc::Rc;
 
-use crate::eval::eval;
-use crate::scan::resolve;
-use crate::typecheck::Scheme;
-use crate::typecheck::TExpr;
-
-#[macro_use]
-extern crate lalrpop_util;
-
-lalrpop_mod!(pub gram); // synthesized by LALRPOP
+use crate::{core::*, parse::lexer::lexer};
 
 fn main() {
-    let args: Vec<String> = other_env::args().collect();
-    let filename = &args[1];
-    let source = fs::read_to_string(filename).expect("Couldn't read file.");
+    
+    let main = Supercombinator::new(
+            String::from("main"),
+            vec![],
+            Expr::app(Expr::var("double"), Expr::num(1))
+        );
+    let double = Supercombinator::new(
+            String::from("double"),
+            vec![String::from("x")],
+            Expr::app(
+                Expr::app(
+                    Expr::var("+"),
+                    Expr::var("x")
+                ),
+                Expr::var("x")
+            )
+        );
+    let prog = Program::new(vec![main, double]);
+    println!("{}", prog);
 
-    // let str = "Bool = True | False; Maybe a = Some a | None; List a = Cons a (List a) | Nil; head = (\\ x . case x {Cons a as -> Some a; Nil -> None}); not = (\\x . case x {True -> False; False -> True}); main = (head (Nil))";
-    let parse = gram::TopParser::new().parse(&source).unwrap();
-    let mut sigs = tenv_from_sigs(&parse.signatures);
-    // make undefined and errors inhabit all types
-    sigs.insert(
-        "undefined".to_string(),
-        Scheme::new(vec!["a".to_string()], Rc::new(TExpr::TVar("a".to_string()))),
-    );
-    sigs.insert(
-        "error".to_string(),
-        Scheme::new(vec!["a".to_string()], Rc::new(TExpr::TVar("a".to_string()))),
-    );
-    let expr = parse.to_let();
-    resolve(Rc::clone(&expr), 0);
-    let expr = change_lets(expr);
-    // println!("{:?}", sigs);
-    // println!("{:?}", type_check_def(&sigs, Rc::clone(&expr)));
-    // println!("{}", expr);
-    // println!("{}", expr);
-    // let env = Rc::new(parse.to_env());
-    // let expr = Rc::new(Expr::Var("main".to_string(), RefCell::new(1)));
-    // println!("environment:\n\t{}\nexpr:\n\t{}", env, expr);
-    // println!("{}", eval(expr, env));
-    // println!("{}", eval(expr, Rc::new(Env::Empty), Vec::new()));
-    // println!("{}", expr);
+    let file_path = "/home/ben/stuff/bagl/rust/blah.bagl";
+    let contents = fs::read_to_string(file_path).expect("Should have read the given file");
+    println!("{}", contents);
 
-    match type_check_def(&sigs, Rc::clone(&expr)) {
-        None => {
-            panic!("Did not type check.");
-        }
-        _ => println!("{}", eval(expr, Rc::new(Env::Empty), Vec::new())),
-    }
-}
+    println!("{:?}", lexer("blah 123".to_string()))
+} 
