@@ -1,0 +1,6 @@
+twice f x = f (f x);
+id x = x;
+s f g z = f z (g z);
+k x y = x;
+//main = s k k 1;
+main = twice twice id 2;
